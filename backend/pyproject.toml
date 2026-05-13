@@ -1,0 +1,64 @@
+# Covasant Continuum — Backend
+# Enterprise AI-Powered Knowledge Management Platform
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "covasant-continuum"
+version = "0.1.0"
+description = "Enterprise AI-powered knowledge management and documentation platform"
+requires-python = ">=3.11"
+
+dependencies = [
+    # Core
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic[email]>=2.9.0",
+    "pydantic-settings>=2.5.0",
+    "python-multipart>=0.0.12",
+
+    # Database
+    "sqlalchemy[asyncio]>=2.0.35",
+    "asyncpg>=0.30.0",
+    "alembic>=1.14.0",
+
+    # Auth
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "bcrypt==3.2.0",
+
+    # AI
+    "openai>=1.50.0",
+    "anthropic>=0.37.0",
+    "google-generativeai>=0.8.0",
+    "tiktoken>=0.8.0",
+
+    # Document Processing
+    "pypdf>=5.0.0",
+    "python-docx>=1.1.0",
+    "python-pptx>=1.0.0",
+    "openpyxl>=3.1.5",
+
+    # Vector / Search
+    "pgvector>=0.3.0",
+
+    # Storage
+    "aiofiles>=24.1.0",
+
+    # Utils
+    "python-dotenv>=1.0.1",
+    "httpx>=0.27.0",
+    "redis>=5.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.7.0",
+]
+
+[tool.setuptools]
+packages = ["app"]
