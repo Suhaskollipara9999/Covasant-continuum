@@ -12,14 +12,13 @@ Covasant-Continuum/
 │   ├── index.html
 │   ├── package.json
 │   ├── vite.config.ts
-│   ├── tsconfig.json
-│   └── .env               # Frontend env vars (VITE_*)
+│   └── tsconfig.json
 │
 ├── backend/               # FastAPI Python backend
 │   ├── app/               # Application source (api, models, services, core)
-│   ├── requirements.txt
-│   └── .env               # Backend env vars (DB, Azure, JWT, etc.)
+│   └── requirements.txt
 │
+├── .env                   # Unified environment variables (Frontend & Backend)
 ├── docker-compose.yml     # Local dev services (PostgreSQL, Redis, Elasticsearch)
 ├── requirements.txt       # Python dependencies (pip freeze)
 ├── .gitignore

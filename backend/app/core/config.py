@@ -66,10 +66,11 @@ class Settings(BaseSettings):
     def max_upload_bytes(self) -> int:
         return self.MAX_UPLOAD_SIZE_MB * 1024 * 1024
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-        extra = "ignore"
+    model_config = {
+        "env_file": (".env", "../.env"),
+        "case_sensitive": True,
+        "extra": "ignore"
+    }
 
 
 @lru_cache()
