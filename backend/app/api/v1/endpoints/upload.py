@@ -29,54 +29,72 @@ async def upload_file(
     version: str = Form(None),
     description: str = Form(None),
     video_url: str = Form(None),
+    sprint: str = Form(None),
+    release: str = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     """Upload a file and/or video URL to create an artefact record."""
-    file_info = None
-    if file and file.filename:
-        try:
-            file_info = await storage_service.save_upload(file, subfolder=str(product_id))
-        except ValueError as e:
-            raise HTTPException(status_code=413, detail=str(e))
+    try:
+        file_info = None
+        if file and file.filename:
+            try:
+                file_info = await storage_service.save_upload(file, title=title, subfolder=artefact_type)
+            except ValueError as e:
+                raise HTTPException(status_code=413, detail=str(e))
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                raise HTTPException(status_code=500, detail=f"SharePoint upload failed: {str(e)}")
 
-    if not file_info and not video_url:
-        raise HTTPException(status_code=400, detail="Please provide a file or video URL")
+        if not file_info and not video_url:
+            raise HTTPException(status_code=400, detail="Please provide a file or video URL")
+            
+        meta_dict = {}
+        if sprint: meta_dict["sprint"] = sprint
+        if release: meta_dict["release"] = release
 
-    artefact = Artefact(
-        product_id=product_id,
-        title=title,
-        description=description or "Uploaded via Continuum Admin.",
-        artefact_type=artefact_type,
-        visibility=visibility,
-        status=status,
-        version=version,
-        uploaded_by=current_user.id,
-        file_name=file_info["file_name"] if file_info else None,
-        file_path=file_info["file_path"] if file_info else None,
-        file_size=file_info["file_size"] if file_info else None,
-        mime_type=file_info["mime_type"] if file_info else None,
-        video_url=video_url,
-    )
-    db.add(artefact)
-    await db.flush()
-
-    # Create initial version record only if a file was uploaded
-    if file_info:
-        v1 = ArtefactVersion(
-            artefact_id=artefact.id,
-            version_number=1,
-            file_name=file_info["file_name"],
-            file_path=file_info["file_path"],
-            file_size=file_info["file_size"],
-            mime_type=file_info["mime_type"],
-            changelog="Initial upload",
+        artefact = Artefact(
+            product_id=product_id,
+            title=title,
+            description=description or "Uploaded via Continuum Admin.",
+            artefact_type=artefact_type,
+            visibility=visibility,
+            status=status,
+            version=version,
             uploaded_by=current_user.id,
+            file_name=file_info["file_name"] if file_info else None,
+            file_path=file_info["file_path"] if file_info else None,
+            file_size=file_info["file_size"] if file_info else None,
+            mime_type=file_info["mime_type"] if file_info else None,
+            video_url=video_url,
+            metadata_=meta_dict,
         )
-        db.add(v1)
+        db.add(artefact)
         await db.flush()
 
-    return ArtefactResponse.model_validate(artefact)
+        # Create initial version record only if a file was uploaded
+        if file_info:
+            v1 = ArtefactVersion(
+                artefact_id=artefact.id,
+                version_number=1,
+                file_name=file_info["file_name"],
+                file_path=file_info["file_path"],
+                file_size=file_info["file_size"],
+                mime_type=file_info["mime_type"],
+                changelog="Initial upload",
+                uploaded_by=current_user.id,
+            )
+            db.add(v1)
+            await db.flush()
+
+        return ArtefactResponse.model_validate(artefact)
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Database or server error: {str(e)}")
 
 
 @router.post("/{artefact_id}/version", response_model=MessageResponse)
@@ -96,7 +114,7 @@ async def upload_new_version(
         raise HTTPException(status_code=404, detail="Artefact not found")
 
     try:
-        file_info = await storage_service.save_upload(file, subfolder=str(artefact.product_id))
+        file_info = await storage_service.save_upload(file, subfolder=artefact.artefact_type.value if hasattr(artefact.artefact_type, 'value') else str(artefact.artefact_type))
     except ValueError as e:
         raise HTTPException(status_code=413, detail=str(e))
 

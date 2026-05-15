@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.api.v1.router import api_router
 from app.db.session import init_db
 from app.services.auth_service import AuthService
+from app.services.storage_service import storage_service
 from app.db.session import async_session_factory
 
 settings = get_settings()
@@ -26,6 +27,17 @@ async def lifespan(app: FastAPI):
         await AuthService.bootstrap_superadmin(
             db, settings.SUPER_ADMIN_EMAIL, settings.SUPER_ADMIN_PASSWORD
         )
+
+    # Initialize SharePoint folder structure (Continuum + type sub-folders)
+    if settings.STORAGE_BACKEND == "sharepoint":
+        try:
+            await storage_service.initialize_folder_structure()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                "SharePoint folder init failed (will retry on first upload): %s", e
+            )
+
     yield
     # Shutdown: cleanup resources if needed
 

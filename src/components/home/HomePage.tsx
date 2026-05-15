@@ -17,13 +17,25 @@ interface Product {
   artefact_count: number;
 }
 
-const TYPE_CONFIG: { key: string; abbr: string; label: string; sub: string; color: string }[] = [
-  { key: 'release-notes', abbr: 'RN', label: 'Release Notes', sub: 'Sprint updates', color: '#059669' },
-  { key: 'video', abbr: 'VD', label: 'Videos', sub: 'Platform demos', color: '#DC2626' },
-  { key: 'guide', abbr: 'GD', label: 'Guides', sub: 'Quick starts', color: '#7C3AED' },
-  { key: 'documentation', abbr: 'DC', label: 'Docs', sub: 'Full reference', color: '#2563EB' },
-  { key: 'newsletter', abbr: 'NL', label: 'News', sub: 'Stay informed', color: '#D97706' },
-  { key: 'api-spec', abbr: 'AS', label: 'API Specs', sub: 'Integrations', color: '#0D9488' },
+const TYPE_CONFIG = [
+  { key: 'Release Notes', abbr: 'RN', label: 'Release Notes', sub: 'Sprint updates', color: '#059669' },
+  { key: 'Roadmap', abbr: 'RM', label: 'Roadmap', sub: 'Future plans', color: '#2563EB' },
+  { key: 'Product Docs', abbr: 'PD', label: 'Product Docs', sub: 'Core manuals', color: '#7C3AED' },
+  { key: 'Architecture', abbr: 'AR', label: 'Architecture', sub: 'System design', color: '#D97706' },
+  { key: 'Design System', abbr: 'DS', label: 'Design System', sub: 'UI/UX guidelines', color: '#DB2777' },
+  { key: 'Presentations', abbr: 'PR', label: 'Presentations', sub: 'Slide decks', color: '#059669' },
+  { key: 'Market Analysis', abbr: 'MA', label: 'Market Analysis', sub: 'Industry trends', color: '#2563EB' },
+  { key: 'Competition Analysis', abbr: 'CA', label: 'Competition Analysis', sub: 'Competitor data', color: '#7C3AED' },
+  { key: 'Installation Guides', abbr: 'IG', label: 'Installation Guides', sub: 'Setup docs', color: '#D97706' },
+  { key: 'Newsletter', abbr: 'NL', label: 'Newsletter', sub: 'Internal news', color: '#DB2777' },
+  { key: 'Videos', abbr: 'VD', label: 'Videos', sub: 'Platform demos', color: '#059669' },
+  { key: 'Usecases', abbr: 'UC', label: 'Usecases', sub: 'Customer stories', color: '#2563EB' },
+  { key: 'Flyers', abbr: 'FL', label: 'Flyers', sub: 'Marketing material', color: '#7C3AED' },
+  { key: 'Security Report', abbr: 'SR', label: 'Security Report', sub: 'Audits & compliance', color: '#D97706' },
+  { key: 'AI Act', abbr: 'AI', label: 'AI Act', sub: 'Regulatory docs', color: '#DB2777' },
+  { key: 'Training', abbr: 'TR', label: 'Training', sub: 'Learning paths', color: '#059669' },
+  { key: 'Troubleshooting Guide', abbr: 'TG', label: 'Troubleshooting Guide', sub: 'Fixes & FAQs', color: '#2563EB' },
+  { key: 'Error Code Manual', abbr: 'EM', label: 'Error Code Manual', sub: 'Error details', color: '#7C3AED' },
 ];
 
 export default function HomePage() {
@@ -32,6 +44,15 @@ export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
+
+  const [typeScrollLeft, setTypeScrollLeft] = useState(false);
+  const [typeScrollRight, setTypeScrollRight] = useState(true);
+
+  const handleTypeScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollLeft, scrollWidth, clientWidth } = e.currentTarget;
+    setTypeScrollLeft(scrollLeft > 0);
+    setTypeScrollRight(Math.ceil(scrollLeft + clientWidth) < scrollWidth - 2);
+  };
 
   useEffect(() => {
     fetchProducts()
@@ -167,8 +188,8 @@ export default function HomePage() {
         {/* Stats row */}
         <div style={{ display: 'flex', borderTop: '1px solid var(--bd)', marginTop: 16, position: 'relative' }}>
           {[
-            { n: totalDocs, l: 'Documents' },
             { n: products.length, l: 'Products' },
+            { n: totalDocs, l: 'Documents' },
           ].map((s, i) => (
             <div
               key={i}
@@ -292,31 +313,53 @@ export default function HomePage() {
       {/* Browse by type */}
       <div style={{ padding: '0 28px 28px' }}>
         <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: -0.3, marginBottom: 14 }}>Browse by type</div>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(6, 1fr)',
-          gap: 12,
-          background: 'linear-gradient(135deg, rgba(197,211,250,.25) 0%, rgba(216,224,251,.15) 100%)',
-          borderRadius: 14,
-          padding: 14,
-          border: '1.5px solid var(--bd)',
-        }}>
-          {TYPE_CONFIG.map(t => (
-            <div
-              key={t.key}
-              onClick={() => {
-                useAppStore.getState().setFilterType(t.key);
-                setView('browse-type' as any);
-              }}
-              style={{
-                background: 'var(--card)',
-                borderRadius: 10,
-                padding: '18px 12px',
-                textAlign: 'center',
-                cursor: 'pointer',
-                border: '1.5px solid var(--bd)',
-                transition: 'all .2s',
-              }}
+        <div style={{ position: 'relative' }}>
+          {typeScrollLeft && (
+            <button
+              onClick={() => document.getElementById('type-scroll')?.scrollBy({ left: -300, behavior: 'smooth' })}
+              style={{ position: 'absolute', left: -14, top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: 32, height: 32, borderRadius: '50%', background: '#fff', border: '1.5px solid var(--bd)', boxShadow: '0 4px 12px rgba(15,18,53,0.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t2)' }}
+            ><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+          )}
+          {typeScrollRight && (
+            <button
+              onClick={() => document.getElementById('type-scroll')?.scrollBy({ left: 300, behavior: 'smooth' })}
+              style={{ position: 'absolute', right: -14, top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: 32, height: 32, borderRadius: '50%', background: '#fff', border: '1.5px solid var(--bd)', boxShadow: '0 4px 12px rgba(15,18,53,0.06)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--t2)' }}
+            ><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+          )}
+          <div
+            id="type-scroll"
+            onScroll={handleTypeScroll}
+            style={{
+              display: 'flex',
+              gap: 12,
+              overflowX: 'auto',
+              background: 'linear-gradient(135deg, rgba(197,211,250,.25) 0%, rgba(216,224,251,.15) 100%)',
+              borderRadius: 14,
+              padding: 14,
+              border: '1.5px solid var(--bd)',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}
+          >
+            <style>{`#type-scroll::-webkit-scrollbar { display: none; }`}</style>
+            {TYPE_CONFIG.map(t => (
+              <div
+                key={t.key}
+                onClick={() => {
+                  useAppStore.getState().setFilterType(t.key);
+                  setView('browse-type' as any);
+                }}
+                style={{
+                  minWidth: 160,
+                  flexShrink: 0,
+                  background: 'var(--card)',
+                  borderRadius: 10,
+                  padding: '18px 12px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  border: '1.5px solid var(--bd)',
+                  transition: 'all .2s',
+                }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLElement).style.borderColor = t.color;
                 (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 14px ${t.color}20`;
@@ -343,6 +386,7 @@ export default function HomePage() {
               </div>
             </div>
           ))}
+          </div>
         </div>
       </div>
     </div>

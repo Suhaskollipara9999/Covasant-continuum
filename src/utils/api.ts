@@ -58,6 +58,18 @@ export async function createProduct(data: { name: string; full_name: string; des
   return res.json();
 }
 
+export async function updateProduct(id: string, data: { name?: string; full_name?: string; description?: string; color?: string }) {
+  const res = await apiFetch(`${API}/products/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to update product' }));
+    throw new Error(err.detail || 'Failed to update product');
+  }
+  return res.json();
+}
+
 export async function deleteProduct(id: string) {
   const res = await apiFetch(`${API}/products/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete product');

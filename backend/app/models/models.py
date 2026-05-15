@@ -173,7 +173,7 @@ class Artefact(Base, TimestampMixin, SoftDeleteMixin):
     product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False, index=True)
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
-    artefact_type = Column(Enum(ArtefactType), nullable=False, index=True)
+    artefact_type = Column(String(100), nullable=False, index=True)
     visibility = Column(Enum(Visibility), nullable=False, default=Visibility.INTERNAL)
     status = Column(Enum(PublishStatus), nullable=False, default=PublishStatus.DRAFT)
     version = Column(String(50), nullable=True)

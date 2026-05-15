@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useAppStore } from '../../stores/appStore';
-import { fetchProducts, createProduct, deleteProduct } from '../../utils/api';
+import { fetchProducts, createProduct, updateProduct, deleteProduct } from '../../utils/api';
 
 interface Product {
   id: string;
@@ -25,6 +25,7 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ name: '', full_name: '', description: '', color: '#2563EB' });
+  const [editingProduct, setEditingProduct] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
 
@@ -44,17 +45,22 @@ export default function ProductsPage() {
 
   useEffect(() => { loadProducts(); }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreateOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setCreating(true);
     try {
-      await createProduct(form);
+      if (editingProduct) {
+        await updateProduct(editingProduct, form);
+      } else {
+        await createProduct(form);
+      }
       setShowCreate(false);
+      setEditingProduct(null);
       setForm({ name: '', full_name: '', description: '', color: '#2563EB' });
       loadProducts();
     } catch (err: any) {
-      setError(err.message || 'Failed to create product');
+      setError(err.message || `Failed to ${editingProduct ? 'update' : 'create'} product`);
     } finally {
       setCreating(false);
     }
@@ -80,7 +86,11 @@ export default function ProductsPage() {
         </div>
         {isAdmin && (
           <button
-            onClick={() => setShowCreate(true)}
+            onClick={() => {
+              setEditingProduct(null);
+              setForm({ name: '', full_name: '', description: '', color: '#2563EB' });
+              setShowCreate(true);
+            }}
             style={{
               padding: '10px 20px', background: '#2563EB', color: '#fff',
               border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700,
@@ -105,9 +115,11 @@ export default function ProductsPage() {
             background: '#fff', borderRadius: 16, padding: '28px 32px', width: 440,
             boxShadow: '0 20px 60px rgba(15,18,53,.18)',
           }}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 18px', color: 'var(--t1)' }}>Create New Product</h3>
+            <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 18px', color: 'var(--t1)' }}>
+              {editingProduct ? 'Edit Product' : 'Create New Product'}
+            </h3>
             {error && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#DC2626', marginBottom: 14 }}>{error}</div>}
-            <form onSubmit={handleCreate}>
+            <form onSubmit={handleCreateOrUpdate}>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t1)', marginBottom: 5 }}>Short Name (e.g. CAMS)</label>
               <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required
                 style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E2E6F0', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', outline: 'none', marginBottom: 14, boxSizing: 'border-box' }}
@@ -124,9 +136,9 @@ export default function ProductsPage() {
               <input type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })}
                 style={{ width: 50, height: 32, border: '1.5px solid #E2E6F0', borderRadius: 6, cursor: 'pointer', marginBottom: 18 }} />
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowCreate(false)} style={{ padding: '9px 18px', border: '1.5px solid #E2E6F0', borderRadius: 8, background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--t2)' }}>Cancel</button>
+                <button type="button" onClick={() => { setShowCreate(false); setEditingProduct(null); }} style={{ padding: '9px 18px', border: '1.5px solid #E2E6F0', borderRadius: 8, background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--t2)' }}>Cancel</button>
                 <button type="submit" disabled={creating} style={{ padding: '9px 22px', background: '#2563EB', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: creating ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                  {creating ? 'Creating…' : 'Create Product'}
+                  {creating ? 'Saving…' : (editingProduct ? 'Save Changes' : 'Create Product')}
                 </button>
               </div>
             </form>
@@ -185,17 +197,33 @@ export default function ProductsPage() {
                 <span style={{ fontWeight: 700, color: p.color }}>{p.artefact_count}</span> documents
               </div>
               {isAdmin && (
-                <button
-                  onClick={e => { e.stopPropagation(); handleDelete(p.id); }}
-                  style={{
-                    position: 'absolute', top: 12, right: 12,
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: '#B0B8D4', padding: 4,
-                  }}
-                  title="Delete product"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
+                <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      setEditingProduct(p.id);
+                      setForm({ name: p.name, full_name: p.full_name, description: p.description || '', color: p.color });
+                      setShowCreate(true);
+                    }}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: '#B0B8D4', padding: 4,
+                    }}
+                    title="Edit product"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); handleDelete(p.id); }}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: '#B0B8D4', padding: 4,
+                    }}
+                    title="Delete product"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </div>
               )}
             </div>
           ))}

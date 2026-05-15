@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api/v1"
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://continuum:continuum_pass@localhost:5432/continuum_db"
+    DATABASE_URL: str = ""
 
     # JWT
     JWT_SECRET_KEY: str = "change-this-jwt-secret-key"
@@ -28,9 +28,16 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
 
     # Storage
-    STORAGE_BACKEND: str = "local"
-    STORAGE_LOCAL_PATH: str = "./storage/uploads"
+    STORAGE_BACKEND: str = "sharepoint"
     MAX_UPLOAD_SIZE_MB: int = 100
+
+    # SharePoint / Azure AD
+    SHAREPOINT_HOSTNAME: str = ""
+    SHAREPOINT_SITE_PATH: str = ""
+    AZURE_TENANT_ID: str = ""
+    AZURE_CLIENT_ID: str = ""
+    AZURE_CLIENT_SECRET: str = ""
+    SHAREPOINT_ROOT_FOLDER: str = "Continuum"
 
     # AI Providers
     OPENAI_API_KEY: str = ""
@@ -62,6 +69,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
 
 @lru_cache()

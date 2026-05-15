@@ -53,7 +53,8 @@ export function useMicrosoftAuth() {
       setError('Microsoft SSO not configured. Set VITE_AUTH_BASE_URL in frontend .env.');
       return;
     }
-    window.location.href = `${AUTH_BASE_URL}/login/${CLIENT_ID}`;
+    // Append prompt=select_account to force Microsoft to ask for account selection
+    window.location.href = `${AUTH_BASE_URL}/login/${CLIENT_ID}?prompt=select_account`;
   }, []);
 
   /**

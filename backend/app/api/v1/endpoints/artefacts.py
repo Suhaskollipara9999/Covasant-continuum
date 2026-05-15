@@ -175,8 +175,10 @@ async def delete_artefact(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    """Soft-delete an artefact (Admin/Super Admin only)."""
+    """Soft-delete an artefact and remove its file from SharePoint (Admin/Super Admin only)."""
     from datetime import datetime, timezone
+    from app.services.storage_service import storage_service
+
     result = await db.execute(
         select(Artefact).where(Artefact.id == artefact_id, Artefact.is_deleted == False)
     )
@@ -184,23 +186,28 @@ async def delete_artefact(
     if not artefact:
         raise HTTPException(status_code=404, detail="Artefact not found")
 
+    # Delete the actual file from SharePoint
+    if artefact.file_path:
+        try:
+            await storage_service.delete_file(artefact.file_path)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to delete file from SharePoint: {e}")
+
     artefact.is_deleted = True
     artefact.deleted_at = datetime.now(timezone.utc)
     await db.flush()
     return MessageResponse(message="Artefact deleted successfully")
 
 
-@router.get("/{artefact_id}/download")
-async def download_artefact(
+@router.get("/{artefact_id}/download-url")
+async def get_artefact_download_url(
     artefact_id: UUID,
-    inline: bool = False,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Download an artefact file (all authenticated users)."""
-    from fastapi.responses import FileResponse
+    """Get a direct pre-authenticated URL to the file in SharePoint."""
     from app.services.storage_service import storage_service
-    import os
 
     result = await db.execute(
         select(Artefact).where(Artefact.id == artefact_id, Artefact.is_deleted == False)
@@ -211,20 +218,60 @@ async def download_artefact(
     if not artefact.file_path:
         raise HTTPException(status_code=404, detail="No file attached to this artefact")
 
-    file_path = artefact.file_path
-    if not os.path.isabs(file_path):
-        file_path = os.path.join(storage_service.base_path, file_path)
+    download_url = await storage_service.get_download_url(artefact.file_path)
+    return {"url": download_url}
 
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found on disk")
+
+@router.get("/{artefact_id}/download")
+async def download_artefact(
+    artefact_id: UUID,
+    inline: bool = False,
+    redirect: bool = False,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Download an artefact file from SharePoint (all authenticated users).
+
+    Query params:
+        inline:   If true, sets Content-Disposition to 'inline'.
+        redirect: If true, returns a 302 redirect to a pre-authed SharePoint URL
+                  instead of proxying the bytes through this server.
+    """
+    from fastapi.responses import Response, RedirectResponse
+    from app.services.storage_service import storage_service
+
+    result = await db.execute(
+        select(Artefact).where(Artefact.id == artefact_id, Artefact.is_deleted == False)
+    )
+    artefact = result.scalar_one_or_none()
+    if not artefact:
+        raise HTTPException(status_code=404, detail="Artefact not found")
+    if not artefact.file_path:
+        raise HTTPException(status_code=404, detail="No file attached to this artefact")
 
     # Increment download count
     artefact.download_count += 1
     await db.flush()
 
-    return FileResponse(
-        path=file_path,
-        filename=artefact.file_name or "download" if not inline else None,
+    if redirect:
+        # Return a short-lived pre-authenticated URL directly
+        download_url = await storage_service.get_download_url(artefact.file_path)
+        return RedirectResponse(url=download_url, status_code=302)
+
+    # Stream the file content through our API
+    try:
+        content = await storage_service.get_file_content(artefact.file_path)
+    except Exception:
+        raise HTTPException(status_code=404, detail="File not found in SharePoint")
+
+    disposition = "inline" if inline else "attachment"
+    filename = artefact.file_name or "download"
+
+    return Response(
+        content=content,
         media_type=artefact.mime_type or "application/octet-stream",
-        content_disposition_type="inline" if inline else "attachment",
+        headers={
+            "Content-Disposition": f'{disposition}; filename="{filename}"',
+            "Content-Length": str(len(content)),
+        },
     )

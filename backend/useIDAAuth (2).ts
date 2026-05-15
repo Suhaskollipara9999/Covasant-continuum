@@ -33,7 +33,7 @@ export function useIDAAuth() {
   };
 
   const login = () => {
-    window.location.href = `${AUTH_BASE_URL}/login/${CLIENT_ID}`;
+    window.location.href = `${AUTH_BASE_URL}/login/${CLIENT_ID}?prompt=select_account`;
   };
 
   const logout = (remote: boolean = true) => {

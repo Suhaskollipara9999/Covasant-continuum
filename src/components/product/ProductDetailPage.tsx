@@ -36,20 +36,26 @@ interface ProductInfo {
   artefact_count: number;
 }
 
-const TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  'release-notes': { label: 'Release Notes', color: '#059669' },
-  video: { label: 'Video', color: '#DC2626' },
-  guide: { label: 'Guide', color: '#7C3AED' },
-  documentation: { label: 'Documentation', color: '#2563EB' },
-  newsletter: { label: 'Newsletter', color: '#D97706' },
-  'api-spec': { label: 'API Specification', color: '#0D9488' },
-};
+const PREDEFINED_TYPES = [
+  'Release Notes', 'Roadmap', 'Product Docs', 'Architecture', 'Design System',
+  'Presentations', 'Market Analysis', 'Competition Analysis', 'Installation Guides',
+  'Newsletter', 'Videos', 'Usecases', 'Flyers', 'Security Report', 'AI Act',
+  'Training', 'Troubleshooting Guide', 'Error Code Manual'
+];
 
 function formatSize(bytes: number | null) {
   if (!bytes) return '—';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1048576).toFixed(1)} MB`;
+}
+
+// Simple hash to consistently colorize dynamic types
+function stringToColor(str: string) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 70%, 45%)`;
 }
 
 export default function ProductDetailPage() {
@@ -62,12 +68,14 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadForm, setUploadForm] = useState({ title: '', description: '', artefact_type: 'documentation', video_url: '', sprint: '', release: '' });
+  const [uploadForm, setUploadForm] = useState({ title: '', description: '', artefact_type: 'Product Docs', video_url: '', sprint: '', release: '' });
   const [videoPlayer, setVideoPlayer] = useState<{ url: string; title: string } | null>(null);
   const [documentPreview, setDocumentPreview] = useState<{ id: string; url: string; title: string; originalId: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [filterType, setFilterType] = useState('all');
+
+  const [isCustomType, setIsCustomType] = useState(false);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
@@ -97,7 +105,8 @@ export default function ProductDetailPage() {
       await uploadDocument(uploadFile, prod, uploadForm.title, uploadForm.artefact_type, 'internal', uploadForm.description, uploadForm.video_url || undefined, uploadForm.sprint || undefined, uploadForm.release || undefined);
       setShowUpload(false);
       setUploadFile(null);
-      setUploadForm({ title: '', description: '', artefact_type: 'documentation', video_url: '', sprint: '', release: '' });
+      setUploadForm({ title: '', description: '', artefact_type: 'Product Docs', video_url: '', sprint: '', release: '' });
+      setIsCustomType(false);
       load();
     } catch (err: any) {
       setUploadError(err.message || 'Upload failed');
@@ -107,16 +116,34 @@ export default function ProductDetailPage() {
   };
 
   const getEmbedUrl = (url: string): string | null => {
-    // YouTube
     const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]+)/);
     if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
-    // Vimeo
     const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
     if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-    // Loom
     const loomMatch = url.match(/loom\.com\/share\/([\w-]+)/);
     if (loomMatch) return `https://www.loom.com/embed/${loomMatch[1]}`;
     return null;
+  };
+
+  const handleWatchVideo = async (a: Artefact) => {
+    if (a.video_url) {
+      setVideoPlayer({ url: a.video_url, title: a.title });
+      return;
+    }
+    // Fetch pre-signed SharePoint URL for actual video files
+    try {
+      const token = useAuthStore.getState().accessToken;
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+      const res = await fetch(`${apiUrl}/artefacts/${a.id}/download-url`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to get video URL');
+      const data = await res.json();
+      setVideoPlayer({ url: data.url, title: a.title });
+    } catch (error) {
+      console.error('Video preview error:', error);
+      alert('Failed to load video preview. Please check your permissions.');
+    }
   };
 
   const handleDownload = async (id: string, fileName: string) => {
@@ -172,7 +199,6 @@ export default function ProductDetailPage() {
     const { toggleChat, chatOpen, addChatMessage } = useAppStore.getState();
     if (!chatOpen) toggleChat();
     
-    // Add a local bot message to simulate entering RAG mode
     addChatMessage({ 
       id: Date.now().toString(), 
       role: 'bot', 
@@ -190,6 +216,9 @@ export default function ProductDetailPage() {
   };
 
   const filteredArtefacts = filterType === 'all' ? artefacts : artefacts.filter(a => a.artefact_type === filterType);
+  
+  // Get all unique types present in current artefacts (hide empty predefined types)
+  const activeTypes = Array.from(new Set(artefacts.map(a => a.artefact_type))).sort();
 
   if (loading) return <div style={{ padding: 60, textAlign: 'center', color: 'var(--t3)' }}>Loading…</div>;
   if (!product) return <div style={{ padding: 60, textAlign: 'center', color: 'var(--t3)' }}>Product not found</div>;
@@ -233,16 +262,24 @@ export default function ProductDetailPage() {
 
       {/* Filter Bar */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
-        {[{ key: 'all', label: 'All' }, ...Object.entries(TYPE_LABELS).map(([k, v]) => ({ key: k, label: v.label }))].map(f => (
-          <button key={f.key} onClick={() => setFilterType(f.key)}
+        <button onClick={() => setFilterType('all')}
+          style={{
+            padding: '5px 14px', borderRadius: 6, fontSize: 11.5, fontWeight: 600,
+            border: filterType === 'all' ? '1.5px solid #2563EB' : '1.5px solid var(--bd)',
+            background: filterType === 'all' ? 'rgba(37,99,235,.06)' : 'var(--card)',
+            color: filterType === 'all' ? '#2563EB' : 'var(--t3)',
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}>All</button>
+        {activeTypes.map(type => (
+          <button key={type} onClick={() => setFilterType(type)}
             style={{
               padding: '5px 14px', borderRadius: 6, fontSize: 11.5, fontWeight: 600,
-              border: filterType === f.key ? '1.5px solid #2563EB' : '1.5px solid var(--bd)',
-              background: filterType === f.key ? 'rgba(37,99,235,.06)' : 'var(--card)',
-              color: filterType === f.key ? '#2563EB' : 'var(--t3)',
+              border: filterType === type ? '1.5px solid #2563EB' : '1.5px solid var(--bd)',
+              background: filterType === type ? 'rgba(37,99,235,.06)' : 'var(--card)',
+              color: filterType === type ? '#2563EB' : 'var(--t3)',
               cursor: 'pointer', fontFamily: 'inherit',
             }}>
-            {f.label}
+            {type}
           </button>
         ))}
       </div>
@@ -251,7 +288,7 @@ export default function ProductDetailPage() {
       {showUpload && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,18,53,.4)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={() => setShowUpload(false)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '28px 32px', width: 480, boxShadow: '0 20px 60px rgba(15,18,53,.18)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '28px 32px', width: 480, boxShadow: '0 20px 60px rgba(15,18,53,.18)', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 18px', color: 'var(--t1)' }}>Upload Document</h3>
             {uploadError && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#DC2626', marginBottom: 14 }}>{uploadError}</div>}
             <form onSubmit={handleUpload}>
@@ -275,16 +312,39 @@ export default function ProductDetailPage() {
                 </div>
               </div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t1)', marginBottom: 5 }}>Type</label>
-              <select value={uploadForm.artefact_type} onChange={e => setUploadForm({ ...uploadForm, artefact_type: e.target.value })}
-                style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E2E6F0', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', marginBottom: 14 }}>
-                <option value="documentation">Documentation</option>
-                <option value="release-notes">Release Notes</option>
-                <option value="guide">Guide</option>
-                <option value="video">Video</option>
-                <option value="newsletter">Newsletter</option>
-                <option value="api-spec">API Specification</option>
-              </select>
-              {uploadForm.artefact_type === 'video' && (
+              {!isCustomType ? (
+                <select 
+                  value={uploadForm.artefact_type} 
+                  onChange={e => {
+                    if (e.target.value === 'new') {
+                      setIsCustomType(true);
+                      setUploadForm({ ...uploadForm, artefact_type: '' });
+                    } else {
+                      setUploadForm({ ...uploadForm, artefact_type: e.target.value });
+                    }
+                  }}
+                  style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E2E6F0', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', marginBottom: 14 }}
+                >
+                  {PREDEFINED_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  <option value="new" style={{ fontWeight: 'bold', color: '#2563EB' }}>+ Create New Type</option>
+                </select>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                  <input 
+                    autoFocus
+                    value={uploadForm.artefact_type} 
+                    onChange={e => setUploadForm({ ...uploadForm, artefact_type: e.target.value })} 
+                    placeholder="Enter new type name..."
+                    required
+                    style={{ flex: 1, padding: '9px 12px', border: '1.5px solid #2563EB', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} 
+                  />
+                  <button type="button" onClick={() => { setIsCustomType(false); setUploadForm({ ...uploadForm, artefact_type: PREDEFINED_TYPES[0] }); }}
+                    style={{ padding: '0 12px', background: 'var(--card)', border: '1.5px solid #E2E6F0', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Cancel</button>
+                </div>
+              )}
+
+              
+              {(uploadForm.artefact_type === 'Videos' || uploadForm.artefact_type === 'video') && (
                 <>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t1)', marginBottom: 5 }}>Video URL <span style={{ fontWeight: 400, color: 'var(--t3)' }}>(optional — YouTube, Vimeo, Loom, or direct link)</span></label>
                   <input value={uploadForm.video_url} onChange={e => setUploadForm({ ...uploadForm, video_url: e.target.value })} placeholder="https://youtube.com/watch?v=..."
@@ -327,7 +387,7 @@ export default function ProductDetailPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filteredArtefacts.map(a => {
-            const typeInfo = TYPE_LABELS[a.artefact_type] || { label: a.artefact_type, color: '#6B7199' };
+            const color = stringToColor(a.artefact_type);
             return (
               <div key={a.id} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -338,15 +398,15 @@ export default function ProductDetailPage() {
                 onMouseLeave={e => (e.currentTarget.style.borderColor = '')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: `${typeInfo.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={typeInfo.color} strokeWidth="2">
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: `${color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
                     </svg>
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--t1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.title}</div>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 3, fontSize: 11, color: 'var(--t3)' }}>
-                      <span style={{ background: `${typeInfo.color}15`, color: typeInfo.color, padding: '1px 8px', borderRadius: 4, fontWeight: 700, fontSize: 10 }}>{typeInfo.label}</span>
+                      <span style={{ background: `${color}15`, color: color, padding: '1px 8px', borderRadius: 4, fontWeight: 700, fontSize: 10 }}>{a.artefact_type}</span>
                       {a.file_name && <span>{a.file_name}</span>}
                       <span>{formatSize(a.file_size)}</span>
                       {a.version && <span>v{a.version}</span>}
@@ -360,14 +420,8 @@ export default function ProductDetailPage() {
                     <div>{a.view_count} views · {a.download_count} downloads</div>
                     <div style={{ marginTop: 2 }}>{new Date(a.created_at).toLocaleDateString()}</div>
                   </div>
-                  {a.video_url && (
-                    <button onClick={() => setVideoPlayer({ url: a.video_url!, title: a.title })} title="Watch Video"
-                      style={{ width: 32, height: 32, borderRadius: 8, border: '1.5px solid var(--bd)', background: 'var(--card)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    </button>
-                  )}
-                  {!a.video_url && a.mime_type?.startsWith('video/') && a.file_name && (
-                    <button onClick={() => setVideoPlayer({ url: getDownloadUrl(a.id), title: a.title })} title="Watch Video"
+                  {(a.video_url || a.mime_type?.startsWith('video/')) && (
+                    <button onClick={() => handleWatchVideo(a)} title="Watch Video"
                       style={{ width: 32, height: 32, borderRadius: 8, border: '1.5px solid var(--bd)', background: 'var(--card)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                     </button>
