@@ -1,0 +1,20 @@
+server {
+    # Listen on the port provided by Cloud Run via environment variable
+    listen ${PORT};
+    server_name localhost;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Support for React Router (SPA)
+    # If a file isn't found, fall back to index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Optional: Cache static assets
+    location /assets {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}

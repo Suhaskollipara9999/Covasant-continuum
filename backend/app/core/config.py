@@ -43,14 +43,10 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
     GOOGLE_AI_API_KEY: str = ""
+    
+    # Default AI configuration
     DEFAULT_AI_PROVIDER: str = "anthropic"
     DEFAULT_AI_MODEL: str = "claude-sonnet-4-20250514"
-
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
-
-    # Elasticsearch
-    ELASTICSEARCH_URL: str = "http://localhost:9200"
 
     # Super Admin Bootstrap
     SUPER_ADMIN_EMAIL: str = "admin@covasant.com"

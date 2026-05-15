@@ -5,7 +5,9 @@
 
 import { useAuthStore } from '../stores/authStore';
 
-const API = '/api/v1';
+// Use deployed backend URL if provided, otherwise fallback to local proxy path
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const API = `${BASE_URL}/api/v1`;
 
 async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const token = useAuthStore.getState().accessToken;
