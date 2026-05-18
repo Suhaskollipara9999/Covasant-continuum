@@ -18,10 +18,10 @@ export function useIDAAuth() {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [validationError, setValidationError] = useState<ValidationError | null>(null);
 
-  const AUTH_BASE_URL = (import.meta.env.VITE_AUTH_BASE_URL as string) || "https://auth-service-backend-273497745552.us-central1.run.app";
-  const CLIENT_ID = (import.meta.env.VITE_AUTH_CLIENT_ID as string) || "con-1";
-  // const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:8000";
-  const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || "http://136.112.93.185/smartdata";
+  const AUTH_BASE_URL = "https://auth-service-backend-273497745552.us-central1.run.app";
+  const CLIENT_ID = "edms1";
+  // const API_BASE_URL = "https://continuum-backend-823807258560.us-central1.run.app";
+  const API_BASE_URL = "https://continuum-backend-823807258560.us-central1.run.app";
 
   const getTokens = () => {
     const stored = localStorage.getItem("authTokens");
