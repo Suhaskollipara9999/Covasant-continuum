@@ -22,7 +22,7 @@ export default function AcceptInvitePage() {
 
     setStatus('loading');
     try {
-      const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+      const BASE_URL = 'https://continuum-backend-823807258560.us-central1.run.app';
       const res = await fetch(`${BASE_URL}/api/v1/auth/accept-invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

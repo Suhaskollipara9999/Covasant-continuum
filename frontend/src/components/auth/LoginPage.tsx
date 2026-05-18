@@ -32,7 +32,7 @@ export default function LoginPage() {
         if (result) {
           // Validate with our backend to get Continuum JWT tokens
           try {
-            const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+            const BASE_URL = 'https://continuum-backend-823807258560.us-central1.run.app';
             const resp = await fetch(`${BASE_URL}/api/v1/auth/oauth/validate-entra-user`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

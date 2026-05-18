@@ -15,8 +15,8 @@ export interface MsUserInfo {
   username?: string;
 }
 
-const AUTH_BASE_URL = (import.meta.env.VITE_AUTH_BASE_URL as string) || '';
-const CLIENT_ID = (import.meta.env.VITE_AUTH_CLIENT_ID as string) || 'continuum';
+const AUTH_BASE_URL = 'https://auth-service-backend-273497745552.us-central1.run.app';
+const CLIENT_ID = 'edms1';
 
 function parseJwt(token: string): Record<string, any> | null {
   try {

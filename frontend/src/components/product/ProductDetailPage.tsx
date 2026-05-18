@@ -133,7 +133,7 @@ export default function ProductDetailPage() {
     // Fetch pre-signed SharePoint URL for actual video files
     try {
       const token = useAuthStore.getState().accessToken;
-      const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+      const BASE_URL = 'https://continuum-backend-823807258560.us-central1.run.app';
       const apiUrl = `${BASE_URL}/api/v1`;
       const res = await fetch(`${apiUrl}/artefacts/${a.id}/download-url`, {
         headers: { 'Authorization': `Bearer ${token}` }
