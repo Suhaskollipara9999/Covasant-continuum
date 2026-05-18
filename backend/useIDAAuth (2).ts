@@ -19,7 +19,7 @@ export function useIDAAuth() {
   const [validationError, setValidationError] = useState<ValidationError | null>(null);
 
   const AUTH_BASE_URL = "https://auth-service-backend-273497745552.us-central1.run.app";
-  const CLIENT_ID = "edms1";
+  const CLIENT_ID = "con-1";
   // const API_BASE_URL = "https://continuum-backend-823807258560.us-central1.run.app";
   const API_BASE_URL = "https://continuum-backend-823807258560.us-central1.run.app";
 
