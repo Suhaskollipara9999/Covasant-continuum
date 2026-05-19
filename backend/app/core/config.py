@@ -24,8 +24,8 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # CORS
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    # CORS — hardcoded to avoid env variable dependency
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,https://continuum-frontend-823807258560.us-central1.run.app"
 
     # Storage
     STORAGE_BACKEND: str = "sharepoint"
@@ -56,7 +56,14 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> list[str]:
-        return [o.strip() for o in self.CORS_ORIGINS.split(",")]
+        # Always include the Cloud Run frontend URL — hardcoded as the canonical allowed origin
+        hardcoded = [
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "https://continuum-frontend-823807258560.us-central1.run.app",
+        ]
+        env_origins = [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+        return list(dict.fromkeys(hardcoded + env_origins))  # deduplicated
 
     @property
     def max_upload_bytes(self) -> int:
