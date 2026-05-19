@@ -36,7 +36,6 @@ function MainContent() {
 }
 
 export default function App() {
-  const { view } = useAppStore();
   const { isAuthenticated, user } = useAuthStore();
   const setRole = useAppStore(s => s.setRole);
 

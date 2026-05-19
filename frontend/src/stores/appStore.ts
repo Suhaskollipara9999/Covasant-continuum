@@ -3,7 +3,7 @@
    ══════════════════════════════════════════ */
 
 import { create } from 'zustand';
-import type { UserRole, ArtefactType, ViewType, AdminTab, Artefact, ChatMessage } from '../types';
+import type { UserRole, ViewType, AdminTab, Artefact, ChatMessage } from '../types';
 import { ARTEFACTS } from '../data';
 
 interface AppState {
@@ -68,7 +68,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   query: '',
   role: 'internal',
   apiKey: localStorage.getItem('nx_k') || '',
-  adminTab: 'upload',
+  adminTab: 'tenants',
   uploadStep: 1,
   uploadFile: null,
   chatOpen: false,

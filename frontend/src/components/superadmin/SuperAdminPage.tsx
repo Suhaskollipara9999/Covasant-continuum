@@ -18,6 +18,7 @@ interface Tenant {
   slug: string;
   domain: string | null;
   is_active: boolean;
+  settings?: { allowed_products?: string[] };
 }
 
 interface AdminUser {
@@ -48,7 +49,7 @@ export default function SuperAdminPage() {
   // ── Tenants state ──
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  const [newTenant, setNewTenant] = useState({ name: '', slug: '', domain: '', allowed_products: [] as string[] });
+  const [newTenant, setNewTenant] = useState<{ id?: string; name: string; slug: string; domain: string; allowed_products: string[] }>({ name: '', slug: '', domain: '', allowed_products: [] });
   const [loadingTenants, setLoadingTenants] = useState(true);
   const [tenantError, setTenantError] = useState('');
 
