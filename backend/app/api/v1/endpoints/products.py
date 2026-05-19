@@ -90,8 +90,10 @@ async def create_product(
     current_user: User = Depends(require_admin),
 ):
     """Create a new product (Admin/Super Admin only)."""
-    # Check for duplicate name
-    existing = await db.execute(select(Product).where(Product.name == data.name))
+    # Check for duplicate name (excluding soft-deleted products)
+    existing = await db.execute(
+        select(Product).where(Product.name == data.name, Product.is_deleted == False)
+    )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="A product with this name already exists")
 
