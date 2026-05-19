@@ -16,7 +16,7 @@ export interface MsUserInfo {
 }
 
 const AUTH_BASE_URL = 'https://auth-service-backend-273497745552.us-central1.run.app';
-const CLIENT_ID = 'edms1';
+const CLIENT_ID = 'con-1';
 
 function parseJwt(token: string): Record<string, any> | null {
   try {
@@ -53,8 +53,10 @@ export function useMicrosoftAuth() {
       setError('Microsoft SSO not configured. Set VITE_AUTH_BASE_URL in frontend .env.');
       return;
     }
+    // Use the current origin so that both localhost and Cloud Run work correctly
+    const redirectUri = encodeURIComponent(window.location.origin + '/');
     // Append prompt=select_account to force Microsoft to ask for account selection
-    window.location.href = `${AUTH_BASE_URL}/login/${CLIENT_ID}?prompt=select_account`;
+    window.location.href = `${AUTH_BASE_URL}/login/${CLIENT_ID}?prompt=select_account&redirect_uri=${redirectUri}`;
   }, []);
 
   /**
