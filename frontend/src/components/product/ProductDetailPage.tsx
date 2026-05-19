@@ -70,7 +70,7 @@ export default function ProductDetailPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadForm, setUploadForm] = useState({ title: '', description: '', artefact_type: 'Product Docs', video_url: '', sprint: '', release: '' });
   const [videoPlayer, setVideoPlayer] = useState<{ url: string; title: string } | null>(null);
-  const [documentPreview, setDocumentPreview] = useState<{ id: string; url: string; title: string; originalId: string } | null>(null);
+  const [documentPreview, setDocumentPreview] = useState<{ id: string; url: string; title: string; originalId: string; previewType?: 'iframe' | 'blob' } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -174,21 +174,41 @@ export default function ProductDetailPage() {
     }
   };
 
-  const handlePreview = async (id: string, title: string) => {
+  const handlePreview = async (a: Artefact) => {
+    const mime = a.mime_type || '';
+    const isOffice = mime.includes('officedocument') || mime.includes('ms-excel') || mime.includes('ms-powerpoint');
+    const isBlobRenderable = mime === 'application/pdf' || mime.startsWith('text/') || mime.startsWith('image/');
+
     try {
       useAppStore.getState().showToast('Loading preview...');
       const token = useAuthStore.getState().accessToken;
-      const url = getDownloadUrl(id);
-      
-      const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (!response.ok) throw new Error('Failed to load document');
-      
-      const blob = await response.blob();
-      const objectUrl = window.URL.createObjectURL(blob);
-      setDocumentPreview({ id, url: objectUrl, title, originalId: id });
+      const BASE_URL = 'https://continuum-backend-823807258560.us-central1.run.app';
+
+      if (isOffice) {
+        // For Office files, get the SharePoint pre-auth URL and open in Office Online viewer
+        const res = await fetch(`${BASE_URL}/api/v1/artefacts/${a.id}/download-url`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Failed to get file URL');
+        const data = await res.json();
+        // Microsoft Office Online Viewer can render pptx/xlsx/docx via a public URL
+        const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(data.url)}`;
+        setDocumentPreview({ id: a.id, url: officeViewerUrl, title: a.title, originalId: a.id, previewType: 'iframe' });
+      } else if (isBlobRenderable) {
+        // For PDF / HTML / CSV / images — proxy through backend and create blob URL
+        const downloadUrl = getDownloadUrl(a.id);
+        const response = await fetch(downloadUrl, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Failed to load document');
+        const blob = await response.blob();
+        const objectUrl = window.URL.createObjectURL(blob);
+        setDocumentPreview({ id: a.id, url: objectUrl, title: a.title, originalId: a.id, previewType: 'blob' });
+      } else {
+        // Unsupported format — fall back to direct download
+        handleDownload(a.id, a.file_name || 'download');
+        useAppStore.getState().showToast('Preview not supported for this file type. Downloading instead...');
+      }
     } catch (error) {
       console.error('Preview error:', error);
       alert('Failed to preview document. It might not be a supported format or requires permissions.');
@@ -396,7 +416,7 @@ export default function ProductDetailPage() {
                 padding: '14px 20px', transition: 'border-color .15s',
               }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = '#C7D2FE')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = '')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--bd)')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: `${color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -428,7 +448,7 @@ export default function ProductDetailPage() {
                     </button>
                   )}
                   {a.file_name && !a.mime_type?.startsWith('video/') && (
-                    <button onClick={() => handlePreview(a.id, a.title)} title="Preview"
+                    <button onClick={() => handlePreview(a)} title="Preview"
                       style={{ width: 32, height: 32, borderRadius: 8, border: '1.5px solid var(--bd)', background: 'var(--card)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                     </button>

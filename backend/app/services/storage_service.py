@@ -174,15 +174,16 @@ class SharePointStorageService:
         
         Args:
             file_data: Raw file bytes.
-            filename: Original filename (e.g. 'spec.pdf').
-            title: Title from the frontend.
+            filename: Original filename (e.g. 'spec.pdf') — preserved as-is in SharePoint.
+            title: Title from the frontend (used for display, not for file naming).
             subfolder: Relative path under Continuum root (e.g. 'documentation' or 'release-notes/product-id').
         """
         ext = Path(filename).suffix
-        safe_title = "".join(c for c in title if c.isalnum() or c in " _-")
-        if not safe_title:
-            safe_title = "unnamed"
-        unique_name = f"{safe_title}{ext}"
+        # Preserve the original filename — strip unsafe chars but keep the original name
+        safe_stem = "".join(c for c in Path(filename).stem if c.isalnum() or c in " _-")
+        if not safe_stem:
+            safe_stem = "unnamed"
+        unique_name = f"{safe_stem}{ext}"
         folder_path = f"{self._root_folder}/{subfolder}" if subfolder else self._root_folder
 
         await self._ensure_folder(folder_path)
@@ -314,6 +315,12 @@ class SharePointStorageService:
             ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
             ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ".xls": "application/vnd.ms-excel",
+            ".ppt": "application/vnd.ms-powerpoint",
+            ".csv": "text/csv",
+            ".html": "text/html",
+            ".htm": "text/html",
+            ".txt": "text/plain",
             ".mp4": "video/mp4",
             ".mov": "video/quicktime",
             ".zip": "application/zip",
