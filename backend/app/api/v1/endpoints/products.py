@@ -90,20 +90,30 @@ async def create_product(
     current_user: User = Depends(require_admin),
 ):
     """Create a new product (Admin/Super Admin only)."""
-    # Check for duplicate name (excluding soft-deleted products)
-    existing = await db.execute(
-        select(Product).where(Product.name == data.name, Product.is_deleted == False)
-    )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="A product with this name already exists")
+    # Check if a product with this name already exists (including soft-deleted)
+    result = await db.execute(select(Product).where(Product.name == data.name))
+    existing_product = result.scalar_one_or_none()
 
-    product = Product(
-        name=data.name,
-        full_name=data.full_name,
-        description=data.description,
-        color=data.color,
-    )
-    db.add(product)
+    if existing_product:
+        if not existing_product.is_deleted:
+            raise HTTPException(status_code=400, detail="A product with this name already exists")
+        
+        # If it was soft-deleted, "undelete" it and update its details
+        existing_product.is_deleted = False
+        existing_product.full_name = data.full_name
+        existing_product.description = data.description
+        existing_product.color = data.color
+        product = existing_product
+    else:
+        # Create a brand new product
+        product = Product(
+            name=data.name,
+            full_name=data.full_name,
+            description=data.description,
+            color=data.color,
+        )
+        db.add(product)
+        
     await db.commit()
     await db.refresh(product)
     return ProductResponse.model_validate(product)
