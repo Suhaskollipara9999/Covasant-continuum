@@ -57,8 +57,9 @@ export default function LoginPage() {
                 isLoading: false,
                 error: null,
               });
-              localStorage.setItem('cc_access', data.access_token);
-              localStorage.setItem('cc_refresh', data.refresh_token);
+              localStorage.setItem('c_at', data.access_token);
+              localStorage.setItem('c_rt', data.refresh_token);
+              localStorage.setItem('c_user', JSON.stringify(data.user));
             } else {
               const errData = await resp.json().catch(() => ({ detail: 'Authentication failed' }));
               setError(errData.detail || 'Microsoft authentication failed');
