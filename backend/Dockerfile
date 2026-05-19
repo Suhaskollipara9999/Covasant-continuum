@@ -1,14 +1,22 @@
 FROM python:3.11-slim
 
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8080
+
 WORKDIR /app
 
-# Install dependencies
+# Install system deps
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python deps
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy app
 COPY . .
 
-# Cloud Run sets the PORT environment variable (defaulting to 8080)
-# Uvicorn MUST bind to 0.0.0.0 and this port
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# Start app
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
