@@ -11,9 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.middleware.auth import require_admin
-from app.models.models import Artefact, ArtefactVersion, User
+from app.models.models import Artefact, ArtefactVersion, Product, User
 from app.schemas.schemas import ArtefactResponse, MessageResponse
 from app.services.storage_service import storage_service
+from app.services.notification_service import notify_all_users
 
 router = APIRouter(prefix="/upload", tags=["File Upload"])
 
@@ -87,6 +88,22 @@ async def upload_file(
             )
             db.add(v1)
             await db.flush()
+
+        # Broadcast notification to all users
+        # Look up product name for a descriptive message
+        prod_result = await db.execute(select(Product).where(Product.id == product_id))
+        product = prod_result.scalar_one_or_none()
+        product_name = product.name if product else "Unknown"
+        await notify_all_users(
+            db,
+            title=f"A new {artefact_type} uploaded in {product_name}",
+            body=f'"{title}" has been added to {product_name}.',
+            type="upload",
+            link=str(product_id),
+            metadata={"artefact_id": str(artefact.id), "artefact_type": artefact_type},
+            exclude_user_id=current_user.id,
+        )
+        await db.flush()
 
         return ArtefactResponse.model_validate(artefact)
     except HTTPException:

@@ -13,6 +13,7 @@ from app.db.session import get_db
 from app.middleware.auth import get_current_user, require_admin
 from app.models.models import Product, Artefact, User
 from app.schemas.schemas import ProductCreate, ProductResponse, MessageResponse
+from app.services.notification_service import notify_all_users
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
@@ -116,6 +117,18 @@ async def create_product(
         
     await db.commit()
     await db.refresh(product)
+
+    # Broadcast notification to all users
+    await notify_all_users(
+        db,
+        title=f"New product created: {product.name}",
+        body=product.description or f"{product.full_name} has been added to Continuum.",
+        type="product",
+        link=str(product.id),
+        exclude_user_id=current_user.id,
+    )
+    await db.commit()
+
     return ProductResponse.model_validate(product)
 
 

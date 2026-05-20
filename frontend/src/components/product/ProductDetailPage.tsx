@@ -70,7 +70,7 @@ export default function ProductDetailPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadForm, setUploadForm] = useState({ title: '', description: '', artefact_type: 'Product Docs', video_url: '', sprint: '', release: '' });
   const [videoPlayer, setVideoPlayer] = useState<{ url: string; title: string } | null>(null);
-  const [documentPreview, setDocumentPreview] = useState<{ id: string; url: string; title: string; originalId: string; previewType?: 'iframe' | 'blob' } | null>(null);
+  const [documentPreview, setDocumentPreview] = useState<{ id: string; url: string; title: string; originalId: string; previewType?: 'iframe' | 'blob' | 'html'; htmlContent?: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -177,6 +177,7 @@ export default function ProductDetailPage() {
   const handlePreview = async (a: Artefact) => {
     const mime = a.mime_type || '';
     const isOffice = mime.includes('officedocument') || mime.includes('ms-excel') || mime.includes('ms-powerpoint');
+    const isHtml = mime === 'text/html';
     const isBlobRenderable = mime === 'application/pdf' || mime.startsWith('text/') || mime.startsWith('image/');
 
     try {
@@ -191,11 +192,19 @@ export default function ProductDetailPage() {
         });
         if (!res.ok) throw new Error('Failed to get file URL');
         const data = await res.json();
-        // Microsoft Office Online Viewer can render pptx/xlsx/docx via a public URL
         const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(data.url)}`;
         setDocumentPreview({ id: a.id, url: officeViewerUrl, title: a.title, originalId: a.id, previewType: 'iframe' });
+      } else if (isHtml) {
+        // For HTML files — read as text and use srcdoc to render safely in iframe
+        const downloadUrl = getDownloadUrl(a.id);
+        const response = await fetch(downloadUrl, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Failed to load HTML document');
+        const htmlText = await response.text();
+        setDocumentPreview({ id: a.id, url: '', title: a.title, originalId: a.id, previewType: 'html', htmlContent: htmlText });
       } else if (isBlobRenderable) {
-        // For PDF / HTML / CSV / images — proxy through backend and create blob URL
+        // For PDF / CSV / TXT / images — proxy through backend and create blob URL
         const downloadUrl = getDownloadUrl(a.id);
         const response = await fetch(downloadUrl, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -518,7 +527,16 @@ export default function ProductDetailPage() {
               </div>
             </div>
             <div style={{ flex: 1, position: 'relative', background: '#e5e7eb' }}>
-              <iframe src={documentPreview.url} style={{ width: '100%', height: '100%', border: 'none' }} title={documentPreview.title} />
+              {documentPreview.previewType === 'html' && documentPreview.htmlContent ? (
+                <iframe
+                  srcDoc={documentPreview.htmlContent}
+                  style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
+                  title={documentPreview.title}
+                  sandbox="allow-same-origin allow-scripts"
+                />
+              ) : (
+                <iframe src={documentPreview.url} style={{ width: '100%', height: '100%', border: 'none' }} title={documentPreview.title} />
+              )}
             </div>
           </div>
         </div>
