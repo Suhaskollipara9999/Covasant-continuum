@@ -175,7 +175,24 @@ export default function ProductDetailPage() {
   };
 
   const handlePreview = async (a: Artefact) => {
-    const mime = a.mime_type || '';
+    const fileName = (a.file_name || '').toLowerCase();
+    let mime = (a.mime_type || '').toLowerCase();
+
+    // Fallback: guess MIME type from filename extension if stored MIME is generic or missing
+    if (!mime || mime === 'application/octet-stream') {
+      if (fileName.endsWith('.pdf')) mime = 'application/pdf';
+      else if (fileName.endsWith('.html') || fileName.endsWith('.htm')) mime = 'text/html';
+      else if (fileName.endsWith('.csv')) mime = 'text/csv';
+      else if (fileName.endsWith('.txt')) mime = 'text/plain';
+      else if (fileName.endsWith('.png')) mime = 'image/png';
+      else if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) mime = 'image/jpeg';
+      else if (fileName.endsWith('.docx')) mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      else if (fileName.endsWith('.pptx')) mime = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      else if (fileName.endsWith('.xlsx')) mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      else if (fileName.endsWith('.xls')) mime = 'application/vnd.ms-excel';
+      else if (fileName.endsWith('.ppt')) mime = 'application/vnd.ms-powerpoint';
+    }
+
     const isOffice = mime.includes('officedocument') || mime.includes('ms-excel') || mime.includes('ms-powerpoint');
     const isHtml = mime === 'text/html';
     const isBlobRenderable = mime === 'application/pdf' || mime.startsWith('text/') || mime.startsWith('image/');
